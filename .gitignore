@@ -1,0 +1,45 @@
+# ============================================================
+# .gitignore —— GoFrame 后端 + Vue3 前端 仓库排除清单
+# 说明：go.sum 必须入库（依赖版本可复现），请勿加入本文件
+# ============================================================
+
+# ----- IDE 与编辑器 -----
+.idea/
+.vscode/
+.settings/
+.buildpath
+.project
+*.swp
+*.orig
+
+# ----- OS 系统文件 -----
+.DS_Store
+Thumbs.db
+
+# ----- Go 构建产物与本地工具 -----
+bin/
+pkg/
+main
+cbuild
+*.exe
+vender/
+vendor/
+# 各产品线 CI 编译产物（goframe_elevue / goframe_antdvue / goframe_naivevue …）
+/goframe_*
+
+# ----- 运行时数据（不入库） -----
+log/
+upload/temp/
+
+# ----- 前端（ui/ 独立工程，仅源码入库） -----
+ui/node_modules/
+ui/dist/
+ui/.vite/
+ui/.eslintcache
+
+# ----- Docker 本地密钥（模板 .env.example 入库） -----
+docker/.env
+.env
+
+# ----- 本地脚本 -----
+gitpush.sh

@@ -1,0 +1,110 @@
+# +======================================================================
+# | 模块: Docker Compose 配置
+# | 说明: EasyGoAdmin 后端服务容器编排（后端 + MySQL + Redis）
+# | 位置: 位于 docker/ 目录，宿主路径均以 ../ 相对项目根
+# | 启动（在 docker/ 目录执行）:
+# |   copy .env.example .env   # 首次，按需修改密钥
+# |   docker compose up -d --build
+# +======================================================================
+
+services:
+  # ------------------------------------------------------------
+  # 后端服务（GoFrame）
+  # ------------------------------------------------------------
+  easygoadmin:
+    image: easygoadmin:latest
+    container_name: easygoadmin
+    build:
+      # 上下文为项目根目录（compose 文件所在目录的上一级）
+      context: ..
+      dockerfile: docker/Dockerfile
+    restart: always
+    ports:
+      - "${APP_PORT:-8000}:8000"
+    # 敏感/环境相关配置一律 GF_ 前缀覆盖，不改镜像内 config.yaml
+    # （GF_ 键名 = 配置路径大写下划线，如 file.uploadDir → GF_FILE_UPLOADDIR）
+    environment:
+      TZ: Asia/Shanghai
+      GF_DATABASE_DEFAULT_LINK: "mysql:${MYSQL_USER:-root}:${MYSQL_PASSWORD:-root}@tcp(${MYSQL_HOST:-mysql}:${MYSQL_PORT:-3306})/${MYSQL_DATABASE:-easygoadmin.goframe.elevue}?charset=utf8mb4&parseTime=true&loc=Local"
+      GF_REDIS_DEFAULT_ADDRESS: "${REDIS_HOST:-redis}:${REDIS_PORT:-6379}"
+      GF_REDIS_DEFAULT_PASS: "${REDIS_PASSWORD:-123456}"
+      GF_FILE_UPLOADDIR: "/data/upload"
+      GF_JWT_SECRET: "${JWT_SECRET:-please-change-this-jwt-secret}"
+      GF_CAPTCHA_BYPASSCODE: ""        # 生产环境清空万能验证码
+      GF_APP_ERRORMSG: "false"         # 生产环境关闭详细错误信息
+    volumes:
+      # 上传文件持久化（两段式上传的 temp 与正式目录都在 uploadDir 下）
+      - ../upload:/data/upload
+      # 日志目录持久化
+      - ../log:/opt/easygoadmin/log
+    depends_on:
+      mysql:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "500m"
+        max-file: "10"
+
+  # ------------------------------------------------------------
+  # MySQL 8（首次启动自动导入定稿库结构）
+  # ------------------------------------------------------------
+  mysql:
+    image: mysql:8.0
+    container_name: easygoadmin-mysql
+    restart: always
+    environment:
+      MYSQL_ROOT_PASSWORD: ${MYSQL_PASSWORD:-root}
+      MYSQL_DATABASE: ${MYSQL_DATABASE:-easygoadmin.goframe.elevue}
+      TZ: Asia/Shanghai
+    ports:
+      # 宿主映射端口写死（仅供宿主机客户端直连调试；宿主机 3306 被占用时改此处）
+      - "3306:3306"
+    volumes:
+      - mysql-data:/var/lib/mysql
+      # 首次初始化：导入定稿 SQL（仅空数据卷时执行一次）
+      - ../document/mysql/easygoadmin.goframe.elevue.sql:/docker-entrypoint-initdb.d/init.sql:ro
+    command:
+      - --character-set-server=utf8mb4
+      - --collation-server=utf8mb4_unicode_ci
+      - --lower_case_table_names=1
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "127.0.0.1", "-uroot", "-p${MYSQL_PASSWORD:-root}"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "500m"
+        max-file: "10"
+
+  # ------------------------------------------------------------
+  # Redis（JWT黑名单/验证码/字典/身份缓存；宕机时应用自动降级内存）
+  # ------------------------------------------------------------
+  redis:
+    image: redis:7-alpine
+    container_name: easygoadmin-redis
+    restart: always
+    command: ["redis-server", "--requirepass", "${REDIS_PASSWORD:-123456}", "--appendonly", "yes"]
+    ports:
+      # 宿主映射端口写死（仅供宿主机客户端直连调试；宿主机 6379 被占用时改此处）
+      - "6379:6379"
+    volumes:
+      - redis-data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "-a", "${REDIS_PASSWORD:-123456}", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "500m"
+        max-file: "10"
+
+volumes:
+  mysql-data:
+  redis-data:

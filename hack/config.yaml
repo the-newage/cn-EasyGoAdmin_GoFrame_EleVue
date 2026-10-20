@@ -1,0 +1,23 @@
+# ======================================================================
+# gf gen 代码生成配置（键名已对照 gf v2.10.3 gendao/genservice 源码核实）
+# 用法：gf gen dao -c hack/config.yaml && gf gen service -c hack/config.yaml
+# ======================================================================
+gfcli:
+  gen:
+    dao:
+      link:           "mysql:root:root@tcp(127.0.0.1:3306)/easygoadmin.goframe.elevue?charset=utf8mb4"
+      removePrefix:   "goframe_"           # goframe_user → User/UserDao
+      group:          "default"
+      jsonCase:       "CamelLower"
+      descriptionTag: true                 # 列注释写入 entity
+      overwriteDao:   false                # 保留已定制的 dao 扩展文件
+      tplDaoIndexPath: "hack/tpl/dao_index.tpl"   # 自定义 dao 扩展模板（挂载全局钩子）
+      # 生成路径（相对 path）
+      path:        "internal"
+      daoPath:     "dao"
+      doPath:      "model/do"
+      entityPath:  "model/entity"
+    service:
+      srcFolder: "internal/logic"          # 扫描 sUser/sRole…（默认 stPattern ^s([A-Z]\w+)$）
+      dstFolder: "internal/service"
+      clear:     false              # gf v2.10.3 Windows 下 clear 逻辑路径分隔符不匹配，会误删刚生成的文件，故关闭
